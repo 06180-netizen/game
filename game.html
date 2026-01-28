@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vocab Quiz - Final Fixed Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Nunito', sans-serif; overflow: hidden; background-color: #0f172a; }
+    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); }
+    
+    @keyframes jumpscare {
+      0% { transform: scale(0.1); opacity: 0; }
+      50% { transform: scale(4); opacity: 1; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    .jumpscare-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(circle, rgba(139,0,0,0.9) 0%, rgba(0,0,0,1) 100%);
+      z-index: 9999; display: none; align-items: center; justify-content: center;
+      pointer-events: none;
+    }
+    .jumpscare-img { animation: jumpscare 0.6s ease-in-out forwards; }
+    
+    .screen-shake { animation: shake 0.4s infinite; }
+    @keyframes shake {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(-8px, 8px); }
+      75% { transform: translate(8px, -8px); }
+    }
+  </style>
+</head>
+<body class="h-full">
+
+  <div id="jumpscare" class="jumpscare-overlay">
+    <div class="jumpscare-img text-9xl">👻</div>
+  </div>
+
+  <div id="app" class="h-full w-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 transition-all duration-700">
+    
+    <div id="start-screen" class="h-full flex flex-col items-center justify-center p-6 text-center">
+      <div class="animate-bounce text-8xl mb-4">🍃</div>
+      <h1 class="text-5xl font-black text-white mb-2 shadow-sm uppercase">Vocab Quiz</h1>
+      <p class="text-white/80 mb-8 font-light italic">"Listen to the beats, focus on the words..."</p>
+      <button onclick="startGame()" class="bg-white text-indigo-600 font-bold text-2xl px-12 py-4 rounded-full shadow-2xl hover:scale-110 transition-all active:scale-95">
+        START GAME
+      </button>
+    </div>
+
+    <div id="quiz-screen" class="h-full flex flex-col p-6 hidden overflow-y-auto">
+      <div class="w-full max-w-2xl mx-auto mb-6 text-white">
+        <div class="flex justify-between font-bold mb-2 uppercase tracking-widest text-xs">
+          <span id="counter">Question 1/20</span>
+          <span id="score">Score: 0</span>
+        </div>
+        <div class="h-2 bg-white/30 rounded-full overflow-hidden">
+          <div id="progress" class="h-full bg-white transition-all duration-500" style="width: 5%"></div>
+        </div>
+      </div>
+
+      <div class="flex-1 flex items-center justify-center">
+        <div class="glass-card w-full max-w-xl rounded-[2.5rem] p-8 shadow-2xl">
+          <div class="text-center mb-6">
+            <div id="emoji" class="text-7xl mb-2">❓</div>
+            <h2 id="word" class="text-4xl font-black text-slate-800 mb-2">Word</h2>
+          </div>
+          <div id="choices" class="grid grid-cols-1 gap-3"></div>
+          <div id="feedback" class="hidden mt-6 text-center">
+            <p id="feedback-text" class="text-xl font-bold mb-4"></p>
+            <button onclick="next()" class="bg-indigo-600 text-white w-full py-4 rounded-xl font-bold hover:bg-indigo-700 transition-colors uppercase">
+              Continue
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="result-screen" class="h-full flex flex-col items-center justify-center hidden">
+      <div class="glass-card p-10 rounded-[3rem] text-center shadow-2xl mx-4">
+        <h2 class="text-3xl font-bold mb-4">COMPLETED! 🎉</h2>
+        <p id="final-score" class="text-7xl font-black text-indigo-600 mb-8">0/20</p>
+        <button onclick="location.reload()" class="bg-slate-800 text-white px-12 py-4 rounded-full font-bold">RESTART</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const bgm = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3'); 
+    const sfxCorrect = new Audio('https://commondatastorage.googleapis.com/codeskulptor-assets/week7-brrring.m4a');
+    const sfxWrong = new Audio('https://commondatastorage.googleapis.com/codeskulptor-assets/evillaugh.ogg');
+    const sfxClick = new Audio('https://codeskulptor-assets.commondatastorage.googleapis.com/pages/click_sound.mp3');
+
+    bgm.loop = true;
+    bgm.volume = 0.2;
+
+    const vocab = [
+      { w: 'A person who treats patients', e: '👨‍⚕️', c: 'A doctor', o: ['A doctor', 'A teacher', 'A cooker', 'A pilot'] },
+      { w: 'A person who teaches students', e: '👩‍🏫', c: 'A teacher', o: ['A mechanic', 'A teacher', 'A singer', 'A police officer'] },
+      { w: 'A person who cooks food', e: '👨‍🍳', c: 'A chef', o: ['An artist', 'A chef', 'A janitor', 'A pilot'] },
+      { w: 'A medical professional', e: '👩‍⚕️', c: 'A nurse', o: ['A nurse', 'A writer', 'A musician', 'A farmer'] },
+      { w: 'An officer who catches criminals', e: '👮', c: 'A police officer', o: ['A baker', 'A painter', 'A captain', 'A police officer'] },
+      { w: 'Mother', e: '👩', c: 'A female parent', o: ['A female parent', 'A father', 'A brother', 'An aunt'] },
+      { w: 'Father', e: '👨', c: 'A male parent', o: ['An uncle', 'A male parent', 'A grandfather', 'A nephew'] },
+      { w: 'Brother', e: '👦', c: 'A male sibling', o: ['A male sibling', 'A sister', 'A mother', 'A daughter'] },
+      { w: 'Sister', e: '👧', c: 'A female sibling', o: ['An aunt', 'A female sibling', 'A grandfather', 'A son'] },
+      { w: 'Grandpa', e: '👴', c: 'The father of your parent', o: ['The father of your parent', 'A grandmother', 'A son', 'A grandson'] },
+      { w: 'Pencil', e: '✏️', c: 'A tool for writing', o: ['A tool for writing', 'A tool for eating', 'A tool for erasing', 'A tool for sitting'] },
+      { w: 'Book', e: '📖', c: 'A collection of printed pages', o: ['A collection of printed pages', 'A place for holiday', 'A thing for wearing', 'A place for learning'] },
+      { w: 'Classroom', e: '🏫', c: 'A room where students learn', o: ['A room where students learn', 'A cinema', 'A bathroom', 'A cafeteria'] },
+      { w: 'Homework', e: '📝', c: 'School work done at home', o: ['School work done at home', 'A food you eat', 'A place for watching movie', 'A sport'] },
+      { w: 'Student', e: '🎒', c: 'A person who is studying', o: ['A person who is studying', 'A person who is teaching', 'A person who is helping', 'A person who cook food'] },
+      { w: 'Sweep', e: '🧹', c: 'To clean the floor with a broom', o: ['To clean the floor with a broom', 'To wash dishes', 'To mop', 'To sleep'] },
+      { w: 'Laundry', e: '🧺', c: 'Washing clothes', o: ['Washing clothes', 'Washing a car', 'Ironing', 'Watering plants'] },
+      { w: 'Ironing', e: '👔', c: 'Making clothes smooth', o: ['Making clothes smooth', 'Cooking rice', 'Cleaning the toilet', 'Showering'] },
+      { w: 'Dish washing', e: '🍽️', c: 'Cleaning plates', o: ['Cleaning plates', 'Setting the table', 'Cooking', 'Drying hands'] },
+      { w: 'Vacuum', e: '🔌', c: 'Using a machine to suck up dust', o: ['Using a machine to suck up dust', 'Washing clothes', 'Sweeping', 'Washing dishes'] }
+    ];
+
+    let idx = 0, score = 0, data = [], lock = false;
+
+    function startGame() {
+      bgm.play().catch(() => {});
+      data = vocab.sort(() => Math.random() - 0.5);
+      idx = 0; score = 0;
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('quiz-screen').classList.remove('hidden');
+      render();
+    }
+
+    function render() {
+      lock = false;
+      const q = data[idx];
+      document.getElementById('feedback').classList.add('hidden');
+      document.getElementById('counter').innerText = `Question ${idx + 1}/20`;
+      document.getElementById('progress').style.width = `${((idx + 1) / 20) * 100}%`;
+      document.getElementById('word').innerText = q.w;
+      document.getElementById('emoji').innerText = q.e;
+      
+      const box = document.getElementById('choices');
+      box.innerHTML = '';
+      
+      // Shuffle choices for each question
+      const choices = [...q.o].sort(() => Math.random() - 0.5);
+      
+      choices.forEach(optionText => {
+        const btn = document.createElement('button');
+        btn.className = "w-full p-4 border-2 border-slate-100 rounded-xl font-bold text-slate-700 hover:bg-indigo-50 transition-all text-left";
+        btn.innerText = optionText;
+        // ส่งค่าตัวเลือกที่คลิกไปเช็กกับคำตอบที่ถูกต้องใน data
+        btn.onclick = () => checkAnswer(optionText, q.c, btn);
+        box.appendChild(btn);
+      });
+    }
+
+    function checkAnswer(selected, correct, btn) {
+      if(lock) return; 
+      lock = true; 
+      
+      sfxClick.currentTime = 0; sfxClick.play();
+      
+      const fText = document.getElementById('feedback-text');
+      // แก้ไขบัค: เปรียบเทียบค่าแบบตัดช่องว่างส่วนเกิน
+      if(selected.trim() === correct.trim()) {
+        score++;
+        sfxCorrect.currentTime = 0; sfxCorrect.play();
+        btn.classList.add('bg-green-500', 'text-white', 'border-green-500');
+        fText.innerText = "CORRECT! ✨";
+        fText.className = "text-green-600 font-bold mb-4";
+      } else {
+        sfxWrong.currentTime = 0; sfxWrong.play();
+        btn.classList.add('bg-red-500', 'text-white', 'border-red-500');
+        fText.innerText = `WRONG! Correct Answer: ${correct}`;
+        fText.className = "text-red-600 font-bold mb-4";
+        showGhost();
+      }
+      
+      document.getElementById('score').innerText = `Score: ${score}`;
+      document.getElementById('feedback').classList.remove('hidden');
+    }
+
+    function showGhost() {
+      const g = document.getElementById('jumpscare');
+      g.style.display = 'flex';
+      document.body.classList.add('screen-shake');
+      setTimeout(() => {
+        g.style.display = 'none';
+        document.body.classList.remove('screen-shake');
+      }, 700);
+    }
+
+    function next() {
+      idx++;
+      if(idx < 20) render();
+      else showResults();
+    }
+
+    function showResults() {
+      document.getElementById('quiz-screen').classList.add('hidden');
+      document.getElementById('result-screen').classList.remove('hidden');
+      document.getElementById('final-score').innerText = `${score}/20`;
+    }
+  </script>
+</body>
+</html>
